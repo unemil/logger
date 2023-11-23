@@ -12,7 +12,7 @@ import (
 var (
 	logger *slog.Logger
 
-	ctxFieldKeys = make([]any, 0)
+	ctxFieldKeys = make(map[any]struct{}, 0)
 )
 
 const (
@@ -41,6 +41,7 @@ func init() {
 			}
 
 			if a.Key == slog.SourceKey {
+				// TODO: skip number of stack caller frames
 				source := a.Value.Any().(*slog.Source)
 				a.Value = slog.StringValue(fmt.Sprintf("%s:%d", source.File, source.Line))
 			}
@@ -95,8 +96,10 @@ func Errorf(ctx context.Context, msg string, err error, fields ...any) {
 	logger.LogAttrs(ctx, slog.LevelError, msg, getAttrs(ctx, fields...)...)
 }
 
-func ContextWith(ctx context.Context, key, value any) context.Context {
-	ctxFieldKeys = append(ctxFieldKeys, key)
+func WithContext(ctx context.Context, key, value any) context.Context {
+	if _, ok := ctxFieldKeys[key]; !ok {
+		ctxFieldKeys[key] = struct{}{}
+	}
 
 	return context.WithValue(ctx, key, value)
 }
@@ -125,7 +128,7 @@ func getAttrs(ctx context.Context, fields ...any) []slog.Attr {
 		attrs = appendAttr(attrs, ctxFields[i], ctxFields[i+1])
 	}
 
-	for _, key := range ctxFieldKeys {
+	for key := range ctxFieldKeys {
 		if value := ctx.Value(key); value != nil {
 			attrs = appendAttr(attrs, key, value)
 		}
