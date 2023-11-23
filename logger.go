@@ -9,16 +9,22 @@ import (
 	"time"
 )
 
-var logger *slog.Logger
+var (
+	logger *slog.Logger
 
-const LogLevel = "LOG_LEVEL" // TODO: rename or set custom ???
+	ctxFieldKeys = make([]any, 0)
+)
+
+const (
+	logLevel  = "LOG_LEVEL"
+	logFields = "LOG_FIELDS"
+)
 
 func init() {
 	logger = slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
 		AddSource: true,
 		Level: func() slog.Level {
-			logLevelEnv := os.Getenv(LogLevel)
-			switch logLevelEnv {
+			switch os.Getenv(logLevel) {
 			case slog.LevelDebug.String():
 				return slog.LevelDebug
 			case slog.LevelWarn.String():
@@ -36,7 +42,7 @@ func init() {
 
 			if a.Key == slog.SourceKey {
 				source := a.Value.Any().(*slog.Source)
-				a.Value = slog.StringValue(fmt.Sprintf("%s:%d", source.File, source.Line)) // TODO: maybe a relative path + line ???
+				a.Value = slog.StringValue(fmt.Sprintf("%s:%d", source.File, source.Line))
 			}
 
 			return a
@@ -89,42 +95,72 @@ func Errorf(ctx context.Context, msg string, err error, fields ...any) {
 	logger.LogAttrs(ctx, slog.LevelError, msg, getAttrs(ctx, fields...)...)
 }
 
+func ContextWith(ctx context.Context, key, value any) context.Context {
+	ctxFieldKeys = append(ctxFieldKeys, key)
+
+	return context.WithValue(ctx, key, value)
+}
+
 func getAttrs(ctx context.Context, fields ...any) []slog.Attr {
+	ctxFields := make([]any, 0)
+	if value := ctx.Value(logFields); value != nil {
+		ctxFields = value.([]any)
+	}
+
 	if len(fields)%2 != 0 {
-		fields = append(fields[:len(fields)-1], fields[len(fields):]...) // TODO: delete or append ???
+		fields = append(fields[:len(fields)-1], fields[len(fields):]...)
 	}
 
-	// TODO: get fields from context
+	if len(ctxFields)%2 != 0 {
+		ctxFields = append(ctxFields[:len(ctxFields)-1], ctxFields[len(ctxFields):]...)
+	}
 
-	attrs := make([]slog.Attr, 0, len(fields))
+	attrs := make([]slog.Attr, 0, len(fields)+len(ctxFields)+len(ctxFieldKeys))
+
 	for i := 0; i < len(fields); i += 2 {
-		var (
-			key   = slog.AnyValue(fields[i]).String()
-			value any
-		)
-
-		v := slog.AnyValue(fields[i+1])
-		switch v.Kind() {
-		case slog.KindBool:
-			value = v.Bool()
-		case slog.KindDuration:
-			value = v.Duration().String()
-		case slog.KindFloat64:
-			value = v.Float64()
-		case slog.KindInt64:
-			value = v.Int64()
-		case slog.KindString:
-			value = v.String()
-		case slog.KindTime:
-			value = v.Time().Format(time.RFC3339)
-		case slog.KindUint64:
-			value = v.Uint64()
-		default:
-			value = v.Any()
-		}
-
-		attrs = append(attrs, slog.Any(key, value))
+		attrs = appendAttr(attrs, fields[i], fields[i+1])
 	}
+
+	for i := 0; i < len(ctxFields); i += 2 {
+		attrs = appendAttr(attrs, ctxFields[i], ctxFields[i+1])
+	}
+
+	for _, key := range ctxFieldKeys {
+		if value := ctx.Value(key); value != nil {
+			attrs = appendAttr(attrs, key, value)
+		}
+	}
+
+	return attrs
+}
+
+func appendAttr(attrs []slog.Attr, fieldKey, fieldValue any) []slog.Attr {
+	var (
+		key   = slog.AnyValue(fieldKey).String()
+		value any
+	)
+
+	v := slog.AnyValue(fieldValue)
+	switch v.Kind() {
+	case slog.KindBool:
+		value = v.Bool()
+	case slog.KindDuration:
+		value = v.Duration().String()
+	case slog.KindFloat64:
+		value = v.Float64()
+	case slog.KindInt64:
+		value = v.Int64()
+	case slog.KindString:
+		value = v.String()
+	case slog.KindTime:
+		value = v.Time().Format(time.RFC3339)
+	case slog.KindUint64:
+		value = v.Uint64()
+	default:
+		value = v.Any()
+	}
+
+	attrs = append(attrs, slog.Any(key, value))
 
 	return attrs
 }

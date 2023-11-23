@@ -1,4 +1,4 @@
-Logger implementation using only the standard library.
+Structured logger implementation using only the standard library.
 
 ## Install
 
