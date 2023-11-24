@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"runtime"
+	"strings"
 	"time"
 )
 
@@ -41,9 +43,26 @@ func init() {
 			}
 
 			if a.Key == slog.SourceKey {
-				// TODO: skip number of stack caller frames
 				source := a.Value.Any().(*slog.Source)
-				a.Value = slog.StringValue(fmt.Sprintf("%s:%d", source.File, source.Line))
+
+				pcs := make([]uintptr, 10)
+				runtime.Callers(0, pcs)
+
+				frames := runtime.CallersFrames(pcs)
+				for {
+					frame, more := frames.Next()
+					if !more {
+						break
+					}
+
+					source.File = frame.File
+					source.Line = frame.Line
+				}
+
+				a.Value = slog.StringValue(fmt.Sprintf("%s:%d",
+					source.File[strings.LastIndexByte(source.File[:strings.LastIndexByte(source.File, '/')], '/')+1:],
+					source.Line,
+				))
 			}
 
 			return a
