@@ -99,11 +99,9 @@ func Errorf(ctx context.Context, msg string, err error, fields ...any) {
 func WithContext(ctx context.Context, key, value any) context.Context {
 	if _, ok := ctxFieldKeys[key]; !ok {
 		ctxFieldKeys[key] = struct{}{}
-
-		return context.WithValue(ctx, key, value)
 	}
 
-	return ctx
+	return context.WithValue(ctx, key, value)
 }
 
 func getAttrs(ctx context.Context, fields ...any) []slog.Attr {
