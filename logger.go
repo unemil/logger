@@ -70,8 +70,6 @@ func init() {
 	}))
 }
 
-// TODO: add tests
-
 func Info(ctx context.Context, msg string) {
 	logger.LogAttrs(ctx, slog.LevelInfo, msg, getAttrs(ctx)...)
 }
