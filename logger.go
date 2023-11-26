@@ -17,15 +17,19 @@ var (
 	ctxFieldKeys = make(map[any]struct{}, 0)
 
 	logLevels = map[slog.Leveler]string{
-		levelTrace: "TRACE",
-		levelFatal: "FATAL",
-		levelPanic: "PANIC",
+		levelTrace: logLevelTrace,
+		levelFatal: logLevelFatal,
+		levelPanic: logLevelPanic,
 	}
 )
 
 const (
 	logLevel  = "LOG_LEVEL"
 	logFields = "LOG_FIELDS"
+
+	logLevelTrace = "TRACE"
+	logLevelFatal = "FATAL"
+	logLevelPanic = "PANIC"
 
 	levelTrace = slog.Level(slog.LevelDebug - (4 << 0))
 	levelFatal = slog.Level(slog.LevelError + (4 << 0))
@@ -37,7 +41,7 @@ func init() {
 		AddSource: true,
 		Level: func() slog.Level {
 			switch os.Getenv(logLevel) {
-			case logLevels[levelTrace]:
+			case logLevelTrace:
 				return levelTrace
 			case slog.LevelDebug.String():
 				return slog.LevelDebug
