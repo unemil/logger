@@ -121,7 +121,7 @@ func Warnf(ctx context.Context, msg string, fields ...any) {
 }
 
 func Error(ctx context.Context, msg string, err error) {
-	logger.LogAttrs(ctx, slog.LevelError, msg, getAttrs(ctx, getErrorFields(err))...)
+	logger.LogAttrs(ctx, slog.LevelError, msg, getAttrs(ctx, getErrorFields(err)...)...)
 }
 
 func Errorf(ctx context.Context, msg string, err error, fields ...any) {
@@ -129,7 +129,7 @@ func Errorf(ctx context.Context, msg string, err error, fields ...any) {
 }
 
 func Fatal(ctx context.Context, msg string, err error) {
-	logger.LogAttrs(ctx, levelFatal, msg, getAttrs(ctx, getErrorFields(err))...)
+	logger.LogAttrs(ctx, levelFatal, msg, getAttrs(ctx, getErrorFields(err)...)...)
 	os.Exit(1)
 }
 
@@ -139,7 +139,7 @@ func Fatalf(ctx context.Context, msg string, err error, fields ...any) {
 }
 
 func Panic(ctx context.Context, msg string, err error) {
-	logger.LogAttrs(ctx, levelPanic, msg, getAttrs(ctx, getErrorFields(err))...)
+	logger.LogAttrs(ctx, levelPanic, msg, getAttrs(ctx, getErrorFields(err)...)...)
 	panic(err)
 }
 
