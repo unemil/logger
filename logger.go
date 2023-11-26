@@ -15,11 +15,21 @@ var (
 	logger *slog.Logger
 
 	ctxFieldKeys = make(map[any]struct{}, 0)
+
+	logLevels = map[slog.Leveler]string{
+		levelTrace: "TRACE",
+		levelFatal: "FATAL",
+		levelPanic: "PANIC",
+	}
 )
 
 const (
 	logLevel  = "LOG_LEVEL"
 	logFields = "LOG_FIELDS"
+
+	levelTrace = slog.Level(slog.LevelDebug - (4 << 0))
+	levelFatal = slog.Level(slog.LevelError + (4 << 0))
+	levelPanic = slog.Level(slog.LevelError + (4 << 1))
 )
 
 func init() {
@@ -27,12 +37,10 @@ func init() {
 		AddSource: true,
 		Level: func() slog.Level {
 			switch os.Getenv(logLevel) {
+			case logLevels[levelTrace]:
+				return levelTrace
 			case slog.LevelDebug.String():
 				return slog.LevelDebug
-			case slog.LevelWarn.String():
-				return slog.LevelWarn
-			case slog.LevelError.String():
-				return slog.LevelError
 			default:
 				return slog.LevelInfo
 			}
@@ -65,6 +73,16 @@ func init() {
 				))
 			}
 
+			if a.Key == slog.LevelKey {
+				level := a.Value.Any().(slog.Level)
+				value, exists := logLevels[level]
+				if !exists {
+					value = level.String()
+				}
+
+				a.Value = slog.StringValue(value)
+			}
+
 			return a
 		},
 	}))
@@ -76,6 +94,14 @@ func Info(ctx context.Context, msg string) {
 
 func Infof(ctx context.Context, msg string, fields ...any) {
 	logger.LogAttrs(ctx, slog.LevelInfo, msg, getAttrs(ctx, fields...)...)
+}
+
+func Trace(ctx context.Context, msg string) {
+	logger.LogAttrs(ctx, levelTrace, msg, getAttrs(ctx)...)
+}
+
+func Tracef(ctx context.Context, msg string, fields ...any) {
+	logger.LogAttrs(ctx, levelTrace, msg, getAttrs(ctx, fields...)...)
 }
 
 func Debug(ctx context.Context, msg string) {
@@ -95,22 +121,31 @@ func Warnf(ctx context.Context, msg string, fields ...any) {
 }
 
 func Error(ctx context.Context, msg string, err error) {
-	if err == nil {
-		err = errors.New("")
-	}
-
-	logger.LogAttrs(ctx, slog.LevelError, msg, getAttrs(ctx, "error", err.Error())...)
+	logger.LogAttrs(ctx, slog.LevelError, msg, getAttrs(ctx, getErrorFields(err, "error", err.Error()))...)
 }
 
 func Errorf(ctx context.Context, msg string, err error, fields ...any) {
-	if err == nil {
-		err = errors.New("")
-	}
+	logger.LogAttrs(ctx, slog.LevelError, msg, getAttrs(ctx, getErrorFields(err, fields...)...)...)
+}
 
-	fields = append(fields, "error", err.Error())
-	fields = append(fields[len(fields)-2:], fields[:len(fields)-2]...)
+func Fatal(ctx context.Context, msg string, err error) {
+	logger.LogAttrs(ctx, levelFatal, msg, getAttrs(ctx, getErrorFields(err, "error", err.Error()))...)
+	os.Exit(1)
+}
 
-	logger.LogAttrs(ctx, slog.LevelError, msg, getAttrs(ctx, fields...)...)
+func Fatalf(ctx context.Context, msg string, err error, fields ...any) {
+	logger.LogAttrs(ctx, levelFatal, msg, getAttrs(ctx, getErrorFields(err, fields...)...)...)
+	os.Exit(1)
+}
+
+func Panic(ctx context.Context, msg string, err error) {
+	logger.LogAttrs(ctx, levelPanic, msg, getAttrs(ctx, getErrorFields(err, "error", err.Error()))...)
+	panic(err)
+}
+
+func Panicf(ctx context.Context, msg string, err error, fields ...any) {
+	logger.LogAttrs(ctx, levelPanic, msg, getAttrs(ctx, getErrorFields(err, fields...)...)...)
+	panic(err)
 }
 
 func WithContext(ctx context.Context, key, value any) context.Context {
@@ -119,6 +154,17 @@ func WithContext(ctx context.Context, key, value any) context.Context {
 	}
 
 	return context.WithValue(ctx, key, value)
+}
+
+func getErrorFields(err error, fields ...any) []any {
+	if err == nil {
+		err = errors.New("")
+	}
+
+	fields = append(fields, "error", err.Error())
+	fields = append(fields[len(fields)-2:], fields[:len(fields)-2]...)
+
+	return fields
 }
 
 func getAttrs(ctx context.Context, fields ...any) []slog.Attr {
