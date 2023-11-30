@@ -116,62 +116,62 @@ func init() {
 }
 
 func Info(ctx context.Context, msg string) {
-	logger.LogAttrs(ctx, slog.LevelInfo, msg, getAttrs(ctx)...)
+	logger.LogAttrs(ctx, slog.LevelInfo, msg)
 }
 
 func Infof(ctx context.Context, msg string, fields ...any) {
-	logger.LogAttrs(ctx, slog.LevelInfo, msg, getAttrs(ctx, fields...)...)
+	logger.LogAttrs(ctx, slog.LevelInfo, msg, getAttrs(fields...)...)
 }
 
 func Trace(ctx context.Context, msg string) {
-	logger.LogAttrs(ctx, levelTrace, msg, getAttrs(ctx)...)
+	logger.LogAttrs(ctx, levelTrace, msg)
 }
 
 func Tracef(ctx context.Context, msg string, fields ...any) {
-	logger.LogAttrs(ctx, levelTrace, msg, getAttrs(ctx, fields...)...)
+	logger.LogAttrs(ctx, levelTrace, msg, getAttrs(fields...)...)
 }
 
 func Debug(ctx context.Context, msg string) {
-	logger.LogAttrs(ctx, slog.LevelDebug, msg, getAttrs(ctx)...)
+	logger.LogAttrs(ctx, slog.LevelDebug, msg)
 }
 
 func Debugf(ctx context.Context, msg string, fields ...any) {
-	logger.LogAttrs(ctx, slog.LevelDebug, msg, getAttrs(ctx, fields...)...)
+	logger.LogAttrs(ctx, slog.LevelDebug, msg, getAttrs(fields...)...)
 }
 
 func Warn(ctx context.Context, msg string) {
-	logger.LogAttrs(ctx, slog.LevelWarn, msg, getAttrs(ctx)...)
+	logger.LogAttrs(ctx, slog.LevelWarn, msg)
 }
 
 func Warnf(ctx context.Context, msg string, fields ...any) {
-	logger.LogAttrs(ctx, slog.LevelWarn, msg, getAttrs(ctx, fields...)...)
+	logger.LogAttrs(ctx, slog.LevelWarn, msg, getAttrs(fields...)...)
 }
 
 func Error(ctx context.Context, msg string, err error) {
-	logger.LogAttrs(ctx, slog.LevelError, msg, getAttrs(ctx, getErrorFields(err)...)...)
+	logger.LogAttrs(ctx, slog.LevelError, msg, getAttrs(getErrorFields(err)...)...)
 }
 
 func Errorf(ctx context.Context, msg string, err error, fields ...any) {
-	logger.LogAttrs(ctx, slog.LevelError, msg, getAttrs(ctx, getErrorFields(err, fields...)...)...)
+	logger.LogAttrs(ctx, slog.LevelError, msg, getAttrs(getErrorFields(err, fields...)...)...)
 }
 
 func Fatal(ctx context.Context, msg string, err error) {
-	logger.LogAttrs(ctx, levelFatal, msg, getAttrs(ctx, getErrorFields(err)...)...)
+	logger.LogAttrs(ctx, levelFatal, msg, getAttrs(getErrorFields(err)...)...)
 	os.Exit(1)
 }
 
 func Fatalf(ctx context.Context, msg string, err error, fields ...any) {
-	logger.LogAttrs(ctx, levelFatal, msg, getAttrs(ctx, getErrorFields(err, fields...)...)...)
+	logger.LogAttrs(ctx, levelFatal, msg, getAttrs(getErrorFields(err, fields...)...)...)
 	os.Exit(1)
 }
 
 func Panic(ctx context.Context, msg string, err error) {
-	logger.LogAttrs(ctx, levelPanic, msg, getAttrs(ctx, getErrorFields(err)...)...)
+	logger.LogAttrs(ctx, levelPanic, msg, getAttrs(getErrorFields(err)...)...)
 	panic(err)
 }
 
 func Panicf(ctx context.Context, msg string, err error, fields ...any) {
-	logger.LogAttrs(ctx, levelPanic, msg, getAttrs(ctx, getErrorFields(err, fields...)...)...)
+	logger.LogAttrs(ctx, levelPanic, msg, getAttrs(getErrorFields(err, fields...)...)...)
 	panic(err)
 }
 
@@ -192,7 +192,7 @@ func getErrorFields(err error, fields ...any) []any {
 	return fields
 }
 
-func getAttrs(ctx context.Context, fields ...any) []slog.Attr {
+func getAttrs(fields ...any) []slog.Attr {
 	if len(fields)%2 != 0 {
 		fields = append(fields[:len(fields)-1], fields[len(fields):]...)
 	}
