@@ -42,6 +42,10 @@ type (
 	contextHandler struct{ slog.Handler }
 )
 
+func newContextHandler(h slog.Handler) *contextHandler {
+	return &contextHandler{h}
+}
+
 func (h *contextHandler) Handle(ctx context.Context, r slog.Record) error {
 	attrs := make([]slog.Attr, 0)
 	for key := range ctxFieldKeys {
@@ -54,10 +58,6 @@ func (h *contextHandler) Handle(ctx context.Context, r slog.Record) error {
 	r.AddAttrs(attrs...)
 
 	return h.Handler.Handle(ctx, r)
-}
-
-func newContextHandler(h slog.Handler) *contextHandler {
-	return &contextHandler{h}
 }
 
 func init() {
