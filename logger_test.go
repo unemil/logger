@@ -9,7 +9,7 @@ import (
 func TestWithContext(t *testing.T) {
 	type args struct {
 		ctx   context.Context
-		key   any
+		key   FieldKey
 		value any
 	}
 	tests := []struct {
@@ -24,25 +24,25 @@ func TestWithContext(t *testing.T) {
 				key:   "key",
 				value: "addition",
 			},
-			want: context.WithValue(context.Background(), "key", "addition"),
+			want: context.WithValue(context.Background(), FieldKey("key"), "addition"),
 		},
 		{
 			name: "DuplicationTest",
 			args: args{
-				ctx:   context.WithValue(context.Background(), "key", "duplication"),
+				ctx:   context.WithValue(context.Background(), FieldKey("key"), "duplication"),
 				key:   "key",
 				value: "duplication",
 			},
-			want: context.WithValue(context.WithValue(context.Background(), "key", "duplication"), "key", "duplication"),
+			want: context.WithValue(context.WithValue(context.Background(), FieldKey("key"), "duplication"), FieldKey("key"), "duplication"),
 		},
 		{
 			name: "OverwritingTest",
 			args: args{
-				ctx:   context.WithValue(context.Background(), "key", "default"),
+				ctx:   context.WithValue(context.Background(), FieldKey("key"), "default"),
 				key:   "key",
 				value: "overwriting",
 			},
-			want: context.WithValue(context.WithValue(context.Background(), "key", "default"), "key", "overwriting"),
+			want: context.WithValue(context.WithValue(context.Background(), FieldKey("key"), "default"), FieldKey("key"), "overwriting"),
 		},
 	}
 	for _, tt := range tests {

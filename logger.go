@@ -7,14 +7,15 @@ import (
 	"log/slog"
 	"os"
 	"runtime"
+	"sort"
 	"strings"
 	"time"
 )
 
 var (
-	logger *slog.Logger
+	logger = new(slog.Logger)
 
-	ctxFieldKeys = make(map[any]struct{}, 0)
+	ctxFieldKeys = make(map[FieldKey]struct{}, 0)
 
 	logLevels = map[slog.Leveler]string{
 		levelTrace: logLevelTrace,
@@ -24,8 +25,7 @@ var (
 )
 
 const (
-	logLevel  = "LOG_LEVEL"
-	logFields = "LOG_FIELDS"
+	logLevel = "LOG_LEVEL"
 
 	logLevelTrace = "TRACE"
 	logLevelFatal = "FATAL"
@@ -36,8 +36,32 @@ const (
 	levelPanic = slog.Level(slog.LevelError + (4 << 1))
 )
 
+type (
+	FieldKey string
+
+	contextHandler struct{ slog.Handler }
+)
+
+func (h *contextHandler) Handle(ctx context.Context, r slog.Record) error {
+	attrs := make([]slog.Attr, 0)
+	for key := range ctxFieldKeys {
+		if value := ctx.Value(key); value != nil {
+			attrs = appendAttr(attrs, key, value)
+		}
+	}
+
+	sortAttrs(attrs)
+	r.AddAttrs(attrs...)
+
+	return h.Handler.Handle(ctx, r)
+}
+
+func newContextHandler(h slog.Handler) *contextHandler {
+	return &contextHandler{h}
+}
+
 func init() {
-	logger = slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+	logger = slog.New(newContextHandler(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
 		AddSource: true,
 		Level: func() slog.Level {
 			switch os.Getenv(logLevel) {
@@ -57,7 +81,7 @@ func init() {
 			if a.Key == slog.SourceKey {
 				source := a.Value.Any().(*slog.Source)
 
-				pcs := make([]uintptr, 10)
+				pcs := make([]uintptr, 11)
 				runtime.Callers(0, pcs)
 
 				frames := runtime.CallersFrames(pcs)
@@ -88,8 +112,7 @@ func init() {
 			}
 
 			return a
-		},
-	}))
+		}})))
 }
 
 func Info(ctx context.Context, msg string) {
@@ -152,10 +175,8 @@ func Panicf(ctx context.Context, msg string, err error, fields ...any) {
 	panic(err)
 }
 
-func WithContext(ctx context.Context, key, value any) context.Context {
-	if _, ok := ctxFieldKeys[key]; !ok {
-		ctxFieldKeys[key] = struct{}{}
-	}
+func WithContext(ctx context.Context, key FieldKey, value any) context.Context {
+	ctxFieldKeys[key] = struct{}{}
 
 	return context.WithValue(ctx, key, value)
 }
@@ -172,36 +193,29 @@ func getErrorFields(err error, fields ...any) []any {
 }
 
 func getAttrs(ctx context.Context, fields ...any) []slog.Attr {
-	ctxFields := make([]any, 0)
-	if value := ctx.Value(logFields); value != nil {
-		ctxFields = value.([]any)
-	}
-
 	if len(fields)%2 != 0 {
 		fields = append(fields[:len(fields)-1], fields[len(fields):]...)
 	}
 
-	if len(ctxFields)%2 != 0 {
-		ctxFields = append(ctxFields[:len(ctxFields)-1], ctxFields[len(ctxFields):]...)
-	}
-
-	attrs := make([]slog.Attr, 0, len(fields)+len(ctxFields)+len(ctxFieldKeys))
-
+	unique := make(map[any]any, len(fields))
 	for i := 0; i < len(fields); i += 2 {
-		attrs = appendAttr(attrs, fields[i], fields[i+1])
+		unique[fields[i]] = fields[i+1]
 	}
 
-	for i := 0; i < len(ctxFields); i += 2 {
-		attrs = appendAttr(attrs, ctxFields[i], ctxFields[i+1])
+	attrs := make([]slog.Attr, 0, len(unique))
+	for key, value := range unique {
+		attrs = appendAttr(attrs, key, value)
 	}
 
-	for key := range ctxFieldKeys {
-		if value := ctx.Value(key); value != nil {
-			attrs = appendAttr(attrs, key, value)
-		}
-	}
+	sortAttrs(attrs)
 
 	return attrs
+}
+
+func sortAttrs(attrs []slog.Attr) {
+	sort.Slice(attrs, func(i, j int) bool {
+		return attrs[i].Key < attrs[j].Key
+	})
 }
 
 func appendAttr(attrs []slog.Attr, fieldKey, fieldValue any) []slog.Attr {
