@@ -15,7 +15,8 @@ import (
 var (
 	logger = new(slog.Logger)
 
-	ctxFieldKeys = make(map[FieldKey]struct{}, 0)
+	ctxFieldKeys   = make(map[FieldKey]struct{}, 0)
+	fieldKeysCache = make(map[FieldKey]struct{}, 0)
 
 	logLevels = map[slog.Leveler]string{
 		levelTrace: logLevelTrace,
@@ -56,6 +57,8 @@ func (h *contextHandler) Handle(ctx context.Context, r slog.Record) error {
 
 	sortAttrs(attrs)
 	r.AddAttrs(attrs...)
+
+	fieldKeysCache = make(map[FieldKey]struct{}, 0)
 
 	return h.Handler.Handle(ctx, r)
 }
@@ -197,9 +200,9 @@ func getAttrs(fields ...any) []slog.Attr {
 		fields = append(fields[:len(fields)-1], fields[len(fields):]...)
 	}
 
-	unique := make(map[any]any, len(fields))
+	unique := make(map[FieldKey]any, len(fields))
 	for i := 0; i < len(fields); i += 2 {
-		unique[fields[i]] = fields[i+1]
+		unique[FieldKey(slog.AnyValue(fields[i]).String())] = fields[i+1]
 	}
 
 	attrs := make([]slog.Attr, 0, len(unique))
@@ -218,9 +221,15 @@ func sortAttrs(attrs []slog.Attr) {
 	})
 }
 
-func appendAttr(attrs []slog.Attr, fieldKey, fieldValue any) []slog.Attr {
+func appendAttr(attrs []slog.Attr, fieldKey FieldKey, fieldValue any) []slog.Attr {
+	if _, ok := fieldKeysCache[fieldKey]; ok {
+		return attrs
+	}
+
+	fieldKeysCache[fieldKey] = struct{}{}
+
 	var (
-		key   = slog.AnyValue(fieldKey).String()
+		key   = string(fieldKey)
 		value any
 	)
 
