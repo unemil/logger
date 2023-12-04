@@ -43,9 +43,7 @@ type (
 	contextHandler struct{ slog.Handler }
 )
 
-func newContextHandler(h slog.Handler) *contextHandler {
-	return &contextHandler{h}
-}
+func newContextHandler(h slog.Handler) *contextHandler { return &contextHandler{h} }
 
 func (h *contextHandler) Handle(ctx context.Context, r slog.Record) error {
 	attrs := make([]slog.Attr, 0)
@@ -55,8 +53,7 @@ func (h *contextHandler) Handle(ctx context.Context, r slog.Record) error {
 		}
 	}
 
-	sortAttrs(attrs)
-	r.AddAttrs(attrs...)
+	r.AddAttrs(sortAttrs(attrs)...)
 
 	fieldKeysCache = make(map[FieldKey]struct{}, 0)
 
@@ -151,30 +148,30 @@ func Warnf(ctx context.Context, msg string, fields ...any) {
 }
 
 func Error(ctx context.Context, msg string, err error) {
-	logger.LogAttrs(ctx, slog.LevelError, msg, getAttrs(getErrorFields(err)...)...)
+	logger.LogAttrs(ctx, slog.LevelError, msg, getErrorAttrs(err)...)
 }
 
 func Errorf(ctx context.Context, msg string, err error, fields ...any) {
-	logger.LogAttrs(ctx, slog.LevelError, msg, getAttrs(getErrorFields(err, fields...)...)...)
+	logger.LogAttrs(ctx, slog.LevelError, msg, append(getErrorAttrs(err), getAttrs(fields...)...)...)
 }
 
 func Fatal(ctx context.Context, msg string, err error) {
-	logger.LogAttrs(ctx, levelFatal, msg, getAttrs(getErrorFields(err)...)...)
+	logger.LogAttrs(ctx, levelFatal, msg, getErrorAttrs(err)...)
 	os.Exit(1)
 }
 
 func Fatalf(ctx context.Context, msg string, err error, fields ...any) {
-	logger.LogAttrs(ctx, levelFatal, msg, getAttrs(getErrorFields(err, fields...)...)...)
+	logger.LogAttrs(ctx, levelFatal, msg, append(getErrorAttrs(err), getAttrs(fields...)...)...)
 	os.Exit(1)
 }
 
 func Panic(ctx context.Context, msg string, err error) {
-	logger.LogAttrs(ctx, levelPanic, msg, getAttrs(getErrorFields(err)...)...)
+	logger.LogAttrs(ctx, levelPanic, msg, getErrorAttrs(err)...)
 	panic(err)
 }
 
 func Panicf(ctx context.Context, msg string, err error, fields ...any) {
-	logger.LogAttrs(ctx, levelPanic, msg, getAttrs(getErrorFields(err, fields...)...)...)
+	logger.LogAttrs(ctx, levelPanic, msg, append(getErrorAttrs(err), getAttrs(fields...)...)...)
 	panic(err)
 }
 
@@ -184,15 +181,15 @@ func WithContext(ctx context.Context, key FieldKey, value any) context.Context {
 	return context.WithValue(ctx, key, value)
 }
 
-func getErrorFields(err error, fields ...any) []any {
+func getErrorAttrs(err error) []slog.Attr {
 	if err == nil {
 		err = errors.New("")
 	}
 
-	fields = append(fields, "error", err.Error())
-	fields = append(fields[len(fields)-2:], fields[:len(fields)-2]...)
+	attrs := make([]slog.Attr, 0, 2)
+	attrs = appendAttr(attrs, FieldKey("error"), err.Error())
 
-	return fields
+	return attrs
 }
 
 func getAttrs(fields ...any) []slog.Attr {
@@ -210,15 +207,15 @@ func getAttrs(fields ...any) []slog.Attr {
 		attrs = appendAttr(attrs, key, value)
 	}
 
-	sortAttrs(attrs)
-
-	return attrs
+	return sortAttrs(attrs)
 }
 
-func sortAttrs(attrs []slog.Attr) {
+func sortAttrs(attrs []slog.Attr) []slog.Attr {
 	sort.Slice(attrs, func(i, j int) bool {
 		return attrs[i].Key < attrs[j].Key
 	})
+
+	return attrs
 }
 
 func appendAttr(attrs []slog.Attr, fieldKey FieldKey, fieldValue any) []slog.Attr {

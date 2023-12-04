@@ -1,6 +1,6 @@
 # [![doc-img]][doc]
 
-Structured logger implementation using a standard library.
+Structured logging implementation using a standard library.
 
 ## Install
 
