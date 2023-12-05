@@ -35,6 +35,8 @@ const (
 	levelTrace = slog.Level(slog.LevelDebug - (4 << 0))
 	levelFatal = slog.Level(slog.LevelError + (4 << 0))
 	levelPanic = slog.Level(slog.LevelError + (4 << 1))
+
+	errFieldKey FieldKey = "error"
 )
 
 type (
@@ -46,18 +48,43 @@ type (
 func newContextHandler(h slog.Handler) *contextHandler { return &contextHandler{h} }
 
 func (h *contextHandler) Handle(ctx context.Context, r slog.Record) error {
-	attrs := make([]slog.Attr, 0)
+	attrs := make([]slog.Attr, 0, len(ctxFieldKeys))
 	for key := range ctxFieldKeys {
 		if value := ctx.Value(key); value != nil {
 			attrs = appendAttr(attrs, key, value)
 		}
 	}
 
-	r.AddAttrs(sortAttrs(attrs)...)
+	r.AddAttrs(attrs...)
+
+	var err slog.Attr
+	attrs = make([]slog.Attr, 0, r.NumAttrs())
+	r.Attrs(func(a slog.Attr) bool {
+		switch a.Key {
+		case string(errFieldKey):
+			err = a
+		default:
+			attrs = append(attrs, a)
+		}
+
+		return true
+	})
+
+	sort.Slice(attrs, func(i, j int) bool {
+		return attrs[i].Key < attrs[j].Key
+	})
+
+	if !err.Equal(slog.Attr{}) {
+		attrs = append(attrs, err)
+		attrs = append(attrs[len(attrs)-1:], attrs[:len(attrs)-1]...)
+	}
+
+	record := slog.NewRecord(r.Time, r.Level, r.Message, r.PC)
+	record.AddAttrs(attrs...)
 
 	fieldKeysCache = make(map[FieldKey]struct{}, 0)
 
-	return h.Handler.Handle(ctx, r)
+	return h.Handler.Handle(ctx, record)
 }
 
 func init() {
@@ -186,8 +213,8 @@ func getErrorAttrs(err error) []slog.Attr {
 		err = errors.New("")
 	}
 
-	attrs := make([]slog.Attr, 0, 2)
-	attrs = appendAttr(attrs, FieldKey("error"), err.Error())
+	attrs := make([]slog.Attr, 0, 1)
+	attrs = appendAttr(attrs, errFieldKey, err.Error())
 
 	return attrs
 }
@@ -206,14 +233,6 @@ func getAttrs(fields ...any) []slog.Attr {
 	for key, value := range unique {
 		attrs = appendAttr(attrs, key, value)
 	}
-
-	return sortAttrs(attrs)
-}
-
-func sortAttrs(attrs []slog.Attr) []slog.Attr {
-	sort.Slice(attrs, func(i, j int) bool {
-		return attrs[i].Key < attrs[j].Key
-	})
 
 	return attrs
 }
