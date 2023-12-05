@@ -147,7 +147,7 @@ func Info(ctx context.Context, msg string) {
 }
 
 func Infof(ctx context.Context, msg string, fields ...any) {
-	logger.LogAttrs(ctx, slog.LevelInfo, msg, getAttrs(fields...)...)
+	logger.LogAttrs(ctx, slog.LevelInfo, msg, getAttrs(nil, fields...)...)
 }
 
 func Trace(ctx context.Context, msg string) {
@@ -155,7 +155,7 @@ func Trace(ctx context.Context, msg string) {
 }
 
 func Tracef(ctx context.Context, msg string, fields ...any) {
-	logger.LogAttrs(ctx, levelTrace, msg, getAttrs(fields...)...)
+	logger.LogAttrs(ctx, levelTrace, msg, getAttrs(nil, fields...)...)
 }
 
 func Debug(ctx context.Context, msg string) {
@@ -163,7 +163,7 @@ func Debug(ctx context.Context, msg string) {
 }
 
 func Debugf(ctx context.Context, msg string, fields ...any) {
-	logger.LogAttrs(ctx, slog.LevelDebug, msg, getAttrs(fields...)...)
+	logger.LogAttrs(ctx, slog.LevelDebug, msg, getAttrs(nil, fields...)...)
 }
 
 func Warn(ctx context.Context, msg string) {
@@ -171,34 +171,34 @@ func Warn(ctx context.Context, msg string) {
 }
 
 func Warnf(ctx context.Context, msg string, fields ...any) {
-	logger.LogAttrs(ctx, slog.LevelWarn, msg, getAttrs(fields...)...)
+	logger.LogAttrs(ctx, slog.LevelWarn, msg, getAttrs(nil, fields...)...)
 }
 
 func Error(ctx context.Context, msg string, err error) {
-	logger.LogAttrs(ctx, slog.LevelError, msg, getErrorAttrs(err)...)
+	logger.LogAttrs(ctx, slog.LevelError, msg, getAttrs(getError(err))...)
 }
 
 func Errorf(ctx context.Context, msg string, err error, fields ...any) {
-	logger.LogAttrs(ctx, slog.LevelError, msg, append(getErrorAttrs(err), getAttrs(fields...)...)...)
+	logger.LogAttrs(ctx, slog.LevelError, msg, getAttrs(getError(err), fields...)...)
 }
 
 func Fatal(ctx context.Context, msg string, err error) {
-	logger.LogAttrs(ctx, levelFatal, msg, getErrorAttrs(err)...)
+	logger.LogAttrs(ctx, levelFatal, msg, getAttrs(getError(err))...)
 	os.Exit(1)
 }
 
 func Fatalf(ctx context.Context, msg string, err error, fields ...any) {
-	logger.LogAttrs(ctx, levelFatal, msg, append(getErrorAttrs(err), getAttrs(fields...)...)...)
+	logger.LogAttrs(ctx, levelFatal, msg, getAttrs(getError(err), fields...)...)
 	os.Exit(1)
 }
 
 func Panic(ctx context.Context, msg string, err error) {
-	logger.LogAttrs(ctx, levelPanic, msg, getErrorAttrs(err)...)
+	logger.LogAttrs(ctx, levelPanic, msg, getAttrs(getError(err))...)
 	panic(err)
 }
 
 func Panicf(ctx context.Context, msg string, err error, fields ...any) {
-	logger.LogAttrs(ctx, levelPanic, msg, append(getErrorAttrs(err), getAttrs(fields...)...)...)
+	logger.LogAttrs(ctx, levelPanic, msg, getAttrs(getError(err), fields...)...)
 	panic(err)
 }
 
@@ -208,18 +208,15 @@ func WithContext(ctx context.Context, key FieldKey, value any) context.Context {
 	return context.WithValue(ctx, key, value)
 }
 
-func getErrorAttrs(err error) []slog.Attr {
+func getError(err error) error {
 	if err == nil {
-		err = errors.New("")
+		return errors.New("")
 	}
 
-	attrs := make([]slog.Attr, 0, 1)
-	attrs = appendAttr(attrs, errFieldKey, err.Error())
-
-	return attrs
+	return err
 }
 
-func getAttrs(fields ...any) []slog.Attr {
+func getAttrs(err error, fields ...any) []slog.Attr {
 	if len(fields)%2 != 0 {
 		fields = append(fields[:len(fields)-1], fields[len(fields):]...)
 	}
@@ -230,6 +227,11 @@ func getAttrs(fields ...any) []slog.Attr {
 	}
 
 	attrs := make([]slog.Attr, 0, len(unique))
+
+	if err != nil {
+		attrs = appendAttr(attrs, errFieldKey, err.Error())
+	}
+
 	for key, value := range unique {
 		attrs = appendAttr(attrs, key, value)
 	}
