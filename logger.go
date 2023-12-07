@@ -2,7 +2,6 @@ package logger
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -62,7 +61,10 @@ func (h *contextHandler) Handle(ctx context.Context, r slog.Record) error {
 	r.Attrs(func(a slog.Attr) bool {
 		switch a.Key {
 		case string(errFieldKey):
-			err = a
+			switch r.Level {
+			case slog.LevelError, levelFatal, levelPanic:
+				err = a
+			}
 		default:
 			attrs = append(attrs, a)
 		}
@@ -175,30 +177,30 @@ func Warnf(ctx context.Context, msg string, fields ...any) {
 }
 
 func Error(ctx context.Context, msg string, err error) {
-	logger.LogAttrs(ctx, slog.LevelError, msg, getAttrs(getError(err))...)
+	logger.LogAttrs(ctx, slog.LevelError, msg, getAttrs(err)...)
 }
 
 func Errorf(ctx context.Context, msg string, err error, fields ...any) {
-	logger.LogAttrs(ctx, slog.LevelError, msg, getAttrs(getError(err), fields...)...)
+	logger.LogAttrs(ctx, slog.LevelError, msg, getAttrs(err, fields...)...)
 }
 
 func Fatal(ctx context.Context, msg string, err error) {
-	logger.LogAttrs(ctx, levelFatal, msg, getAttrs(getError(err))...)
+	logger.LogAttrs(ctx, levelFatal, msg, getAttrs(err)...)
 	os.Exit(1)
 }
 
 func Fatalf(ctx context.Context, msg string, err error, fields ...any) {
-	logger.LogAttrs(ctx, levelFatal, msg, getAttrs(getError(err), fields...)...)
+	logger.LogAttrs(ctx, levelFatal, msg, getAttrs(err, fields...)...)
 	os.Exit(1)
 }
 
 func Panic(ctx context.Context, msg string, err error) {
-	logger.LogAttrs(ctx, levelPanic, msg, getAttrs(getError(err))...)
+	logger.LogAttrs(ctx, levelPanic, msg, getAttrs(err)...)
 	panic(err)
 }
 
 func Panicf(ctx context.Context, msg string, err error, fields ...any) {
-	logger.LogAttrs(ctx, levelPanic, msg, getAttrs(getError(err), fields...)...)
+	logger.LogAttrs(ctx, levelPanic, msg, getAttrs(err, fields...)...)
 	panic(err)
 }
 
@@ -206,14 +208,6 @@ func WithContext(ctx context.Context, key FieldKey, value any) context.Context {
 	ctxFieldKeys[key] = struct{}{}
 
 	return context.WithValue(ctx, key, value)
-}
-
-func getError(err error) error {
-	if err == nil {
-		return errors.New("")
-	}
-
-	return err
 }
 
 func getAttrs(err error, fields ...any) []slog.Attr {
@@ -227,11 +221,7 @@ func getAttrs(err error, fields ...any) []slog.Attr {
 	}
 
 	attrs := make([]slog.Attr, 0, len(unique))
-
-	if err != nil {
-		attrs = appendAttr(attrs, errFieldKey, err.Error())
-	}
-
+	attrs = appendAttr(attrs, errFieldKey, err)
 	for key, value := range unique {
 		attrs = appendAttr(attrs, key, value)
 	}
