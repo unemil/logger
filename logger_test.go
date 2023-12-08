@@ -1,55 +1,62 @@
 package logger
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"io"
+	"os"
 	"reflect"
 	"testing"
 )
 
 func TestWithContext(t *testing.T) {
-	type args struct {
-		ctx   context.Context
-		key   FieldKey
-		value any
-	}
-	tests := []struct {
-		name string
-		args args
-		want context.Context
-	}{
-		{
-			name: "AdditionTest",
+	type (
+		args struct {
+			ctx   context.Context
+			key   FieldKey
+			value any
+		}
+
+		field struct {
+			Username any `json:"username"`
+		}
+	)
+
+	const username = "unemil"
+
+	var (
+		buf bytes.Buffer
+		f   field
+
+		test = struct {
+			args args
+			want any
+		}{
 			args: args{
 				ctx:   context.Background(),
-				key:   "key",
-				value: "addition",
+				key:   "username",
+				value: username,
 			},
-			want: context.WithValue(context.Background(), FieldKey("key"), "addition"),
-		},
-		{
-			name: "DuplicationTest",
-			args: args{
-				ctx:   context.WithValue(context.Background(), FieldKey("key"), "duplication"),
-				key:   "key",
-				value: "duplication",
-			},
-			want: context.WithValue(context.WithValue(context.Background(), FieldKey("key"), "duplication"), FieldKey("key"), "duplication"),
-		},
-		{
-			name: "OverwritingTest",
-			args: args{
-				ctx:   context.WithValue(context.Background(), FieldKey("key"), "default"),
-				key:   "key",
-				value: "overwriting",
-			},
-			want: context.WithValue(context.WithValue(context.Background(), FieldKey("key"), "default"), FieldKey("key"), "overwriting"),
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := WithContext(tt.args.ctx, tt.args.key, tt.args.value); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("WithContext() = %v, want %v", got, tt.want)
-			}
-		})
+			want: username,
+		}
+	)
+
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	logger = newLogger()
+
+	ctx := WithContext(test.args.ctx, test.args.key, test.args.value)
+	Info(ctx, "test")
+
+	w.Close()
+	defer r.Close()
+
+	io.Copy(&buf, r)
+	json.Unmarshal(buf.Bytes(), &f)
+
+	if !reflect.DeepEqual(f.Username, test.want) {
+		t.Errorf("got: %v, want: %v", f.Username, test.want)
 	}
 }

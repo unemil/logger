@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	logger = new(slog.Logger)
+	logger *slog.Logger
 
 	ctxFieldKeys   = make(map[FieldKey]struct{}, 0)
 	fieldKeysCache = make(map[FieldKey]struct{}, 0)
@@ -89,8 +89,8 @@ func (h *contextHandler) Handle(ctx context.Context, r slog.Record) error {
 	return h.Handler.Handle(ctx, record)
 }
 
-func init() {
-	logger = slog.New(newContextHandler(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+func newLogger() *slog.Logger {
+	return slog.New(newContextHandler(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
 		AddSource: true,
 		Level: func() slog.Level {
 			switch os.Getenv(logLevel) {
@@ -142,6 +142,10 @@ func init() {
 
 			return a
 		}})))
+}
+
+func init() {
+	logger = newLogger()
 }
 
 func Info(ctx context.Context, msg string) {
