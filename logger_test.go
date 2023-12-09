@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"log/slog"
 	"os"
 	"reflect"
 	"testing"
@@ -45,10 +46,10 @@ func TestWithContext(t *testing.T) {
 	r, w, _ := os.Pipe()
 	os.Stdout = w
 
-	logger = newLogger()
+	logger = newLogger(slog.LevelDebug)
 
 	ctx := WithContext(test.args.ctx, test.args.key, test.args.value)
-	Info(ctx, "test")
+	Debug(ctx, "test")
 
 	w.Close()
 	defer r.Close()

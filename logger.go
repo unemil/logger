@@ -14,8 +14,8 @@ import (
 var (
 	logger *slog.Logger
 
-	ctxFieldKeys   = make(map[FieldKey]struct{}, 0)
-	fieldKeysCache = make(map[FieldKey]struct{}, 0)
+	ctxFieldKeys    = make(map[FieldKey]struct{}, 0)
+	uniqueFieldKeys = make(map[FieldKey]struct{}, 0)
 
 	logLevels = map[slog.Leveler]string{
 		levelTrace: logLevelTrace,
@@ -59,13 +59,12 @@ func (h *contextHandler) Handle(ctx context.Context, r slog.Record) error {
 	var err slog.Attr
 	attrs = make([]slog.Attr, 0, r.NumAttrs())
 	r.Attrs(func(a slog.Attr) bool {
-		switch a.Key {
-		case string(errFieldKey):
+		if a.Key == string(errFieldKey) {
 			switch r.Level {
 			case slog.LevelError, levelFatal, levelPanic:
 				err = a
 			}
-		default:
+		} else {
 			attrs = append(attrs, a)
 		}
 
@@ -81,27 +80,18 @@ func (h *contextHandler) Handle(ctx context.Context, r slog.Record) error {
 		attrs = append(attrs[len(attrs)-1:], attrs[:len(attrs)-1]...)
 	}
 
-	record := slog.NewRecord(r.Time, r.Level, r.Message, r.PC)
-	record.AddAttrs(attrs...)
+	r = slog.NewRecord(r.Time, r.Level, r.Message, r.PC)
+	r.AddAttrs(attrs...)
 
-	fieldKeysCache = make(map[FieldKey]struct{}, 0)
+	uniqueFieldKeys = make(map[FieldKey]struct{}, 0)
 
-	return h.Handler.Handle(ctx, record)
+	return h.Handler.Handle(ctx, r)
 }
 
-func newLogger() *slog.Logger {
-	return slog.New(newContextHandler(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+func newLogger(level slog.Level) *slog.Logger {
+	handler := newContextHandler(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
 		AddSource: true,
-		Level: func() slog.Level {
-			switch os.Getenv(logLevel) {
-			case logLevelTrace:
-				return levelTrace
-			case slog.LevelDebug.String():
-				return slog.LevelDebug
-			default:
-				return slog.LevelInfo
-			}
-		}(),
+		Level:     level,
 		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
 			if a.Key == slog.TimeKey {
 				a.Value = slog.StringValue(a.Value.Time().Format(time.RFC3339))
@@ -141,19 +131,22 @@ func newLogger() *slog.Logger {
 			}
 
 			return a
-		}})))
+		},
+	}))
+
+	return slog.New(handler)
 }
 
 func init() {
-	logger = newLogger()
-}
+	level := slog.LevelInfo
+	switch os.Getenv(logLevel) {
+	case logLevelTrace:
+		level = levelTrace
+	case slog.LevelDebug.String():
+		level = slog.LevelDebug
+	}
 
-func Info(ctx context.Context, msg string) {
-	logger.LogAttrs(ctx, slog.LevelInfo, msg)
-}
-
-func Infof(ctx context.Context, msg string, fields ...any) {
-	logger.LogAttrs(ctx, slog.LevelInfo, msg, getAttrs(nil, fields...)...)
+	logger = newLogger(level)
 }
 
 func Trace(ctx context.Context, msg string) {
@@ -170,6 +163,14 @@ func Debug(ctx context.Context, msg string) {
 
 func Debugf(ctx context.Context, msg string, fields ...any) {
 	logger.LogAttrs(ctx, slog.LevelDebug, msg, getAttrs(nil, fields...)...)
+}
+
+func Info(ctx context.Context, msg string) {
+	logger.LogAttrs(ctx, slog.LevelInfo, msg)
+}
+
+func Infof(ctx context.Context, msg string, fields ...any) {
+	logger.LogAttrs(ctx, slog.LevelInfo, msg, getAttrs(nil, fields...)...)
 }
 
 func Warn(ctx context.Context, msg string) {
@@ -216,7 +217,7 @@ func WithContext(ctx context.Context, key FieldKey, value any) context.Context {
 
 func getAttrs(err error, fields ...any) []slog.Attr {
 	if len(fields)%2 != 0 {
-		fields = append(fields[:len(fields)-1], fields[len(fields):]...)
+		fields = append(fields, nil)
 	}
 
 	unique := make(map[FieldKey]any, len(fields))
@@ -224,7 +225,7 @@ func getAttrs(err error, fields ...any) []slog.Attr {
 		unique[FieldKey(slog.AnyValue(fields[i]).String())] = fields[i+1]
 	}
 
-	attrs := make([]slog.Attr, 0, len(unique))
+	attrs := make([]slog.Attr, 0, len(unique)+1)
 	attrs = appendAttr(attrs, errFieldKey, err)
 	for key, value := range unique {
 		attrs = appendAttr(attrs, key, value)
@@ -233,19 +234,14 @@ func getAttrs(err error, fields ...any) []slog.Attr {
 	return attrs
 }
 
-func appendAttr(attrs []slog.Attr, fieldKey FieldKey, fieldValue any) []slog.Attr {
-	if _, ok := fieldKeysCache[fieldKey]; ok {
+func appendAttr(attrs []slog.Attr, key FieldKey, value any) []slog.Attr {
+	if _, ok := uniqueFieldKeys[key]; ok {
 		return attrs
 	}
 
-	fieldKeysCache[fieldKey] = struct{}{}
+	uniqueFieldKeys[key] = struct{}{}
 
-	var (
-		key   = string(fieldKey)
-		value any
-	)
-
-	v := slog.AnyValue(fieldValue)
+	v := slog.AnyValue(value)
 	switch v.Kind() {
 	case slog.KindBool:
 		value = v.Bool()
@@ -261,11 +257,15 @@ func appendAttr(attrs []slog.Attr, fieldKey FieldKey, fieldValue any) []slog.Att
 		value = v.Time().Format(time.RFC3339)
 	case slog.KindUint64:
 		value = v.Uint64()
+	case slog.KindGroup:
+		value = v.Group()
+	case slog.KindLogValuer:
+		value = v.LogValuer()
 	default:
 		value = v.Any()
 	}
 
-	attrs = append(attrs, slog.Any(key, value))
+	attrs = append(attrs, slog.Any(string(key), value))
 
 	return attrs
 }
