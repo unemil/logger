@@ -47,17 +47,11 @@ type (
 func newContextHandler(h slog.Handler) *contextHandler { return &contextHandler{h} }
 
 func (h *contextHandler) Handle(ctx context.Context, r slog.Record) error {
-	attrs := make([]slog.Attr, 0, len(ctxFieldKeys))
-	for key := range ctxFieldKeys {
-		if value := ctx.Value(key); value != nil {
-			attrs = appendAttr(attrs, key, value)
-		}
-	}
+	var (
+		attrs = make([]slog.Attr, 0, r.NumAttrs()+len(ctxFieldKeys))
+		err   slog.Attr
+	)
 
-	r.AddAttrs(attrs...)
-
-	var err slog.Attr
-	attrs = make([]slog.Attr, 0, r.NumAttrs())
 	r.Attrs(func(a slog.Attr) bool {
 		if a.Key == string(errFieldKey) {
 			switch r.Level {
@@ -71,13 +65,18 @@ func (h *contextHandler) Handle(ctx context.Context, r slog.Record) error {
 		return true
 	})
 
+	for key := range ctxFieldKeys {
+		if value := ctx.Value(key); value != nil {
+			attrs = appendAttr(attrs, key, value)
+		}
+	}
+
 	sort.Slice(attrs, func(i, j int) bool {
 		return attrs[i].Key < attrs[j].Key
 	})
 
 	if !err.Equal(slog.Attr{}) {
-		attrs = append(attrs, err)
-		attrs = append(attrs[len(attrs)-1:], attrs[:len(attrs)-1]...)
+		attrs = append([]slog.Attr{err}, attrs...)
 	}
 
 	r = slog.NewRecord(r.Time, r.Level, r.Message, r.PC)
