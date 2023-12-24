@@ -14,9 +14,8 @@ import (
 func TestWithContext(t *testing.T) {
 	type (
 		args struct {
-			ctx   context.Context
-			key   FieldKey
-			value any
+			ctx        context.Context
+			key, value any
 		}
 
 		field struct {
