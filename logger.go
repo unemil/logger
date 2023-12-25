@@ -14,8 +14,8 @@ import (
 var (
 	logger *slog.Logger
 
-	ctxFieldKeys    = make(map[string]struct{}, 0)
-	uniqueFieldKeys = make(map[string]struct{}, 0)
+	ctxFieldKeys    = make(map[FieldKey]struct{}, 0)
+	uniqueFieldKeys = make(map[FieldKey]struct{}, 0)
 
 	logLevels = map[slog.Leveler]string{
 		levelTrace: logLevelTrace,
@@ -35,10 +35,14 @@ const (
 	levelFatal = slog.Level(slog.LevelError + (4 << 0))
 	levelPanic = slog.Level(slog.LevelError + (4 << 1))
 
-	errFieldKey = "error"
+	errFieldKey FieldKey = "error"
 )
 
-type contextHandler struct{ slog.Handler }
+type (
+	FieldKey string
+
+	contextHandler struct{ slog.Handler }
+)
 
 func newContextHandler(h slog.Handler) *contextHandler { return &contextHandler{h} }
 
@@ -49,7 +53,7 @@ func (h *contextHandler) Handle(ctx context.Context, r slog.Record) error {
 	)
 
 	r.Attrs(func(a slog.Attr) bool {
-		if a.Key == errFieldKey {
+		if a.Key == string(errFieldKey) {
 			switch r.Level {
 			case slog.LevelError, levelFatal, levelPanic:
 				err = a
@@ -78,7 +82,7 @@ func (h *contextHandler) Handle(ctx context.Context, r slog.Record) error {
 	r = slog.NewRecord(r.Time, r.Level, r.Message, r.PC)
 	r.AddAttrs(attrs...)
 
-	uniqueFieldKeys = make(map[string]struct{}, 0)
+	uniqueFieldKeys = make(map[FieldKey]struct{}, 0)
 
 	return h.Handler.Handle(ctx, r)
 }
@@ -204,13 +208,8 @@ func Panicf(ctx context.Context, msg string, err error, fields ...any) {
 	panic(err)
 }
 
-func WithContext(ctx context.Context, key, value any) context.Context {
-	fieldKey, ok := key.(string)
-	if !ok {
-		return ctx
-	}
-
-	ctxFieldKeys[fieldKey] = struct{}{}
+func WithContext(ctx context.Context, key FieldKey, value any) context.Context {
+	ctxFieldKeys[key] = struct{}{}
 
 	return context.WithValue(ctx, key, value)
 }
@@ -220,21 +219,25 @@ func getAttrs(err error, fields ...any) []slog.Attr {
 		fields = append(fields, nil)
 	}
 
-	attrs := make([]slog.Attr, 0, len(fields)+1)
-	attrs = appendAttr(attrs, errFieldKey, err)
+	unique := make(map[FieldKey]any, len(fields))
 	for i := 0; i < len(fields); i += 2 {
-		if key, ok := fields[i].(string); ok {
-			attrs = appendAttr(attrs, key, fields[i+1])
-		}
+		unique[FieldKey(slog.AnyValue(fields[i]).String())] = fields[i+1]
+	}
+
+	attrs := make([]slog.Attr, 0, len(unique)+1)
+	attrs = appendAttr(attrs, errFieldKey, err)
+	for key, value := range unique {
+		attrs = appendAttr(attrs, key, value)
 	}
 
 	return attrs
 }
 
-func appendAttr(attrs []slog.Attr, key string, value any) []slog.Attr {
+func appendAttr(attrs []slog.Attr, key FieldKey, value any) []slog.Attr {
 	if _, ok := uniqueFieldKeys[key]; ok {
 		return attrs
 	}
+
 	uniqueFieldKeys[key] = struct{}{}
 
 	v := slog.AnyValue(value)
@@ -261,7 +264,7 @@ func appendAttr(attrs []slog.Attr, key string, value any) []slog.Attr {
 		value = v.Any()
 	}
 
-	attrs = append(attrs, slog.Any(key, value))
+	attrs = append(attrs, slog.Any(string(key), value))
 
 	return attrs
 }
