@@ -1,6 +1,6 @@
 # [![doc-img]][doc]
 
-Structured logging implementation using a standard library.
+Structured logging based on [slog][slog-doc].
 
 ## Install
 
@@ -44,12 +44,13 @@ import (
 func main() {
 	// LOG_LEVEL=DEBUG
 
-	ctx := logger.WithContext(context.Background(), "username", "unemil")
-	logger.Debug(ctx, "test")
+	ctx := logger.With(context.Background(), "username", "unemil")
+	logger.Debugf(ctx, "test", logger.Fields{"key": "value"})
 
-	// {"time":"2023-12-11T03:29:23+03:00","level":"DEBUG","source":"test/main.go:13","msg":"test","username":"unemil"}
+	// {"time":"2023-12-27T14:42:09+03:00","level":"DEBUG","source":"test/main.go:13","msg":"test","key":"value","username":"unemil"}
 }
 ```
 
 [doc-img]: https://pkg.go.dev/badge/github.com/unemil/logger
 [doc]: https://pkg.go.dev/github.com/unemil/logger
+[slog-doc]: https://pkg.go.dev/log/slog
