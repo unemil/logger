@@ -7,8 +7,6 @@ import (
 
 const errFieldKey FieldKey = "error"
 
-var ctxFieldKeys = make(map[FieldKey]struct{}, 0)
-
 type (
 	Fields map[FieldKey]FieldValue
 

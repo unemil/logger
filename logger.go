@@ -9,7 +9,7 @@ import (
 var logger *slog.Logger
 
 func init() {
-	logger = slog.New(newContextHandler(newJSONHandler()))
+	logger = slog.New(newContextHandler())
 }
 
 func Trace(ctx context.Context, msg string) {

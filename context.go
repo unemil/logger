@@ -11,11 +11,13 @@ import (
 	"time"
 )
 
-type jsonHandler struct {
+var ctxFieldKeys = make(map[FieldKey]struct{}, 0)
+
+type contextHandler struct {
 	slog.Handler
 }
 
-func newJSONHandler() *jsonHandler {
+func newContextHandler() *contextHandler {
 	level := levelInfo
 	switch os.Getenv(logLevel) {
 	case logLevelTrace:
@@ -24,7 +26,7 @@ func newJSONHandler() *jsonHandler {
 		level = levelDebug
 	}
 
-	return &jsonHandler{slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+	return &contextHandler{slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
 		AddSource: true,
 		Level:     level,
 		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
@@ -62,14 +64,6 @@ func newJSONHandler() *jsonHandler {
 			return a
 		},
 	})}
-}
-
-type contextHandler struct {
-	slog.Handler
-}
-
-func newContextHandler(h slog.Handler) *contextHandler {
-	return &contextHandler{h}
 }
 
 func (h *contextHandler) Handle(ctx context.Context, r slog.Record) error {
