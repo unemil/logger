@@ -80,9 +80,7 @@ func (h *contextHandler) Handle(ctx context.Context, r slog.Record) error {
 	)
 
 	for key := range ctxFieldKeys {
-		if value := ctx.Value(key); value != nil {
-			ctxFields[key] = value
-		}
+		ctxFields[key] = ctx.Value(key)
 	}
 
 	r.Attrs(func(a slog.Attr) bool {
