@@ -18,8 +18,6 @@ Set `LOG_LEVEL` one of the [LEVEL](#levels) values (default: **INFO**).
 export LOG_LEVEL=LEVEL
 ```
 
-See the [documentation][doc] for more details.
-
 ## Levels
 
 - TRACE
