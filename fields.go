@@ -5,14 +5,17 @@ import (
 	"time"
 )
 
-const errFieldKey FieldKey = "error"
-
 type (
+	// Fields represents a collection of fields for logging
 	Fields map[FieldKey]FieldValue
 
-	FieldKey   string
+	// FieldKey represents a key used for log fields
+	FieldKey string
+	// FieldValue represents a value used for log fields
 	FieldValue any
 )
+
+const errFieldKey FieldKey = "error"
 
 func (fs Fields) toAttrs() []slog.Attr {
 	attrs := make([]slog.Attr, 0, len(fs))

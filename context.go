@@ -18,24 +18,16 @@ type contextHandler struct {
 }
 
 func newContextHandler() *contextHandler {
-	level := levelInfo
-	switch os.Getenv(logLevel) {
-	case logLevelTrace:
-		level = levelTrace
-	case logLevelDebug:
-		level = levelDebug
-	}
-
 	return &contextHandler{slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
 		AddSource: true,
-		Level:     level,
+		Level:     getLogLevel(),
 		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
 			if a.Key == slog.TimeKey {
 				a.Value = slog.StringValue(a.Value.Time().Format(time.RFC3339))
 			}
 
 			if a.Key == slog.LevelKey {
-				a.Value = slog.StringValue(levels[a.Value.Any().(slog.Level)])
+				a.Value = slog.AnyValue(levels[a.Value.Any().(slog.Level)])
 			}
 
 			if a.Key == slog.SourceKey {
