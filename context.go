@@ -76,9 +76,10 @@ func (h *contextHandler) Handle(ctx context.Context, r slog.Record) error {
 				err = a
 			}
 		} else {
-			delete(ctxFields, FieldKey(a.Key))
 			attrs = append(attrs, a)
 		}
+
+		delete(ctxFields, FieldKey(a.Key))
 
 		return true
 	})
