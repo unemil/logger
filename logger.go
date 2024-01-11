@@ -88,6 +88,9 @@ func Panicf(ctx context.Context, msg string, err error, fields Fields) {
 
 // With returns a context with a key-value pair for logging
 func With(ctx context.Context, key FieldKey, value FieldValue) context.Context {
+	if key == errFieldKey {
+		return ctx
+	}
 	ctxFieldKeys[key] = struct{}{}
 
 	return context.WithValue(ctx, key, value)

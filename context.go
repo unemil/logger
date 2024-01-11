@@ -71,14 +71,11 @@ func (h *contextHandler) Handle(ctx context.Context, r slog.Record) error {
 
 	r.Attrs(func(a slog.Attr) bool {
 		if a.Key == string(errFieldKey) {
-			switch r.Level {
-			case slog.LevelError, levelFatal, levelPanic:
-				err = a
-			}
-		} else {
-			attrs = append(attrs, a)
+			err = a
+			return true
 		}
 
+		attrs = append(attrs, a)
 		delete(ctxFields, FieldKey(a.Key))
 
 		return true
@@ -90,7 +87,7 @@ func (h *contextHandler) Handle(ctx context.Context, r slog.Record) error {
 		return attrs[i].Key < attrs[j].Key
 	})
 
-	if !err.Equal(slog.Attr{}) {
+	if !err.Equal(slog.Attr{}) && r.Level >= levelError {
 		attrs = append([]slog.Attr{err}, attrs...)
 	}
 
