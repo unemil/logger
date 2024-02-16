@@ -14,7 +14,7 @@ import (
 var (
 	ctxFieldKeys = make(map[FieldKey]struct{}, 0)
 
-	ctxHandlerOptions = slog.HandlerOptions{
+	handlerOptions = slog.HandlerOptions{
 		AddSource: true,
 		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
 			if a.Key == slog.TimeKey {
@@ -59,10 +59,10 @@ type contextHandler struct {
 }
 
 func newContextHandler() *contextHandler {
-	ctxHandlerOptions.Level = envLogLevel()
+	handlerOptions.Level = envLogLevel()
 
 	return &contextHandler{
-		Handler: slog.NewJSONHandler(os.Stdout, &ctxHandlerOptions),
+		Handler: slog.NewJSONHandler(os.Stdout, &handlerOptions),
 	}
 }
 

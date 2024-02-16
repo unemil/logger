@@ -35,6 +35,7 @@ package main
 
 import (
 	"context"
+	"errors"
 
 	"github.com/unemil/logger"
 )
@@ -42,10 +43,26 @@ import (
 func main() {
 	// LOG_LEVEL=DEBUG
 
-	ctx := logger.With(context.Background(), "username", "unemil")
-	logger.Debugf(ctx, "test", logger.Fields{"key": "value"})
+	var (
+		ctx = context.Background()
+		err = errors.New("test error")
+	)
 
-	// {"time":"2023-12-27T14:42:09+03:00","level":"DEBUG","source":"test/main.go:13","msg":"test","key":"value","username":"unemil"}
+	logger.Info(ctx, "test")
+
+	// {"time":"2024-02-15T16:32:52+03:00","level":"INFO","source":"test/main.go:18","msg":"test"}
+
+	ctx = logger.With(ctx, "username", "unemil")
+	logger.Debugf(ctx, "test", logger.Fields{
+		"username":     nil,
+		"error_levels": []logger.Level{logger.LevelError, logger.LevelFatal, logger.LevelPanic},
+	})
+
+	// {"time":"2024-02-15T16:32:52+03:00","level":"DEBUG","source":"test/main.go:23","msg":"test","error_levels":["ERROR","FATAL","PANIC"],"username":null}
+
+	logger.Error(ctx, "test", err)
+
+	// {"time":"2024-02-15T16:32:52+03:00","level":"ERROR","source":"test/main.go:30","msg":"test","error":"test error","username":"unemil"}
 }
 ```
 
