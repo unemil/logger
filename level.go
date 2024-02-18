@@ -3,13 +3,14 @@ package logger
 import (
 	"log/slog"
 	"os"
+	"strings"
 )
 
 // Level represents of the levels of logging
 type Level string
 
 const (
-	logLevel = "LOG_LEVEL"
+	envLogLevel = "LOG_LEVEL"
 
 	// LevelTrace represents the level that is required for the most detailed logging.
 	LevelTrace Level = "TRACE"
@@ -45,8 +46,8 @@ var levels = map[slog.Level]Level{
 	levelPanic: LevelPanic,
 }
 
-func envLogLevel() slog.Level {
-	switch env := Level(os.Getenv(logLevel)); env {
+func logLevel() slog.Level {
+	switch env := os.Getenv(envLogLevel); Level(strings.ToUpper(env)) {
 	case LevelTrace:
 		return levelTrace
 	case LevelDebug:

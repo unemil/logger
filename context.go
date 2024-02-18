@@ -6,13 +6,16 @@ import (
 	"log/slog"
 	"os"
 	"runtime"
-	"sort"
 	"strings"
 	"time"
 )
 
+type contextHandler struct {
+	slog.Handler
+}
+
 var (
-	ctxFieldKeys = make(map[FieldKey]struct{}, 0)
+	ctxFieldKeys = make([]FieldKey, 0)
 
 	handlerOptions = slog.HandlerOptions{
 		AddSource: true,
@@ -54,49 +57,39 @@ var (
 	}
 )
 
-type contextHandler struct {
-	slog.Handler
-}
-
 func newContextHandler() *contextHandler {
-	handlerOptions.Level = envLogLevel()
+	handlerOptions.Level = logLevel()
 
-	return &contextHandler{
-		Handler: slog.NewJSONHandler(os.Stdout, &handlerOptions),
-	}
+	return &contextHandler{Handler: slog.NewJSONHandler(os.Stdout, &handlerOptions)}
 }
 
 func (h *contextHandler) Handle(ctx context.Context, r slog.Record) error {
-	ctxFields := make(Fields, 0)
-	for key := range ctxFieldKeys {
-		if value := ctx.Value(key); value != nil && !key.isError() {
-			ctxFields[key] = value
+	var (
+		uniqueFields = make(map[FieldKey]FieldValue, 0)
+		fieldKeys    = make([]FieldKey, 0, len(ctxFieldKeys)+r.NumAttrs())
+
+		setField = func(key FieldKey, value FieldValue) {
+			if _, ok := uniqueFields[key]; !ok {
+				fieldKeys = append(fieldKeys, key)
+			}
+			uniqueFields[key] = value
+		}
+	)
+
+	for _, key := range ctxFieldKeys {
+		if value := ctx.Value(key); value != nil {
+			setField(key, value)
 		}
 	}
-
-	var (
-		err   slog.Attr
-		attrs = make([]slog.Attr, 0, r.NumAttrs()+len(ctxFields))
-	)
 	r.Attrs(func(a slog.Attr) bool {
-		switch key := FieldKey(a.Key); key.isError() {
-		case true:
-			err = a
-		default:
-			attrs = append(attrs, a)
-			delete(ctxFields, key)
-		}
+		setField(FieldKey(a.Key), FieldValue(a.Value))
 
 		return true
 	})
 
-	attrs = append(attrs, ctxFields.toAttrs()...)
-	sort.Slice(attrs, func(i, j int) bool {
-		return attrs[i].Key < attrs[j].Key
-	})
-
-	if r.Level >= levelError {
-		attrs = append([]slog.Attr{err}, attrs...)
+	attrs := make([]slog.Attr, 0, len(fieldKeys))
+	for _, key := range fieldKeys {
+		attrs = append(attrs, Field{Key: key, Value: uniqueFields[key]}.toAttr())
 	}
 
 	r = slog.NewRecord(r.Time, r.Level, r.Message, r.PC)
