@@ -4,6 +4,8 @@ import (
 	"context"
 	"log/slog"
 	"os"
+
+	"github.com/unemil/logger/field"
 )
 
 var logger *slog.Logger
@@ -18,8 +20,8 @@ func Trace(ctx context.Context, msg string) {
 }
 
 // Tracef logs a message at the TRACE level with additional fields.
-func Tracef(ctx context.Context, msg string, fields ...Field) {
-	logger.LogAttrs(ctx, levelTrace, msg, Fields(fields).toAttrs()...)
+func Tracef(ctx context.Context, msg string, fields ...field.Field) {
+	logger.LogAttrs(ctx, levelTrace, msg, convertFields(fields)...)
 }
 
 // Debug logs a message at the DEBUG level.
@@ -28,8 +30,8 @@ func Debug(ctx context.Context, msg string) {
 }
 
 // Debugf logs a message at the DEBUG level with additional fields.
-func Debugf(ctx context.Context, msg string, fields ...Field) {
-	logger.LogAttrs(ctx, levelDebug, msg, Fields(fields).toAttrs()...)
+func Debugf(ctx context.Context, msg string, fields ...field.Field) {
+	logger.LogAttrs(ctx, levelDebug, msg, convertFields(fields)...)
 }
 
 // Info logs a message at the INFO level.
@@ -38,8 +40,8 @@ func Info(ctx context.Context, msg string) {
 }
 
 // Infof logs a message at the INFO level with additional fields.
-func Infof(ctx context.Context, msg string, fields ...Field) {
-	logger.LogAttrs(ctx, levelInfo, msg, Fields(fields).toAttrs()...)
+func Infof(ctx context.Context, msg string, fields ...field.Field) {
+	logger.LogAttrs(ctx, levelInfo, msg, convertFields(fields)...)
 }
 
 // Warn logs a message at the WARN level.
@@ -48,46 +50,51 @@ func Warn(ctx context.Context, msg string) {
 }
 
 // Warnf logs a message at the WARN level with additional fields.
-func Warnf(ctx context.Context, msg string, fields ...Field) {
-	logger.LogAttrs(ctx, levelWarn, msg, Fields(fields).toAttrs()...)
+func Warnf(ctx context.Context, msg string, fields ...field.Field) {
+	logger.LogAttrs(ctx, levelWarn, msg, convertFields(fields)...)
 }
 
 // Error logs a message at the ERROR level with an associated error.
 func Error(ctx context.Context, msg string, err error) {
-	logger.LogAttrs(ctx, levelError, msg, errField(err).toAttr())
+	logger.LogAttrs(ctx, levelError, msg, convertField(errorField(err)))
 }
 
 // Errorf logs a message at the ERROR level with an associated error and additional fields.
-func Errorf(ctx context.Context, msg string, err error, fields ...Field) {
-	logger.LogAttrs(ctx, levelError, msg, append(Fields{errField(err)}, fields...).toAttrs()...)
+func Errorf(ctx context.Context, msg string, err error, fields ...field.Field) {
+	logger.LogAttrs(ctx, levelError, msg, convertFields(appendFields(errorField(err), fields))...)
 }
 
 // Fatal logs a message at the FATAL level with an associated error and exits the program.
 func Fatal(ctx context.Context, msg string, err error) {
-	logger.LogAttrs(ctx, levelFatal, msg, errField(err).toAttr())
+	logger.LogAttrs(ctx, levelFatal, msg, convertField(errorField(err)))
 	os.Exit(1)
 }
 
 // Fatalf logs a message at the FATAL level with an associated error, additional fields and exits the program.
-func Fatalf(ctx context.Context, msg string, err error, fields ...Field) {
-	logger.LogAttrs(ctx, levelFatal, msg, append(Fields{errField(err)}, fields...).toAttrs()...)
+func Fatalf(ctx context.Context, msg string, err error, fields ...field.Field) {
+	logger.LogAttrs(ctx, levelFatal, msg, convertFields(appendFields(errorField(err), fields))...)
 	os.Exit(1)
 }
 
 // Panic logs a message at the PANIC level with an associated error and panics.
 func Panic(ctx context.Context, msg string, err error) {
-	logger.LogAttrs(ctx, levelPanic, msg, errField(err).toAttr())
+	logger.LogAttrs(ctx, levelPanic, msg, convertField(errorField(err)))
 	panic(err)
 }
 
 // Panicf logs a message at the PANIC level with an associated error, additional fields and panics.
-func Panicf(ctx context.Context, msg string, err error, fields ...Field) {
-	logger.LogAttrs(ctx, levelPanic, msg, append(Fields{errField(err)}, fields...).toAttrs()...)
+func Panicf(ctx context.Context, msg string, err error, fields ...field.Field) {
+	logger.LogAttrs(ctx, levelPanic, msg, convertFields(appendFields(errorField(err), fields))...)
 	panic(err)
 }
 
-// With returns a context with a logging key and non-nil value pair.
-func With(ctx context.Context, key FieldKey, value FieldValue) context.Context {
+// Field returns a logging field with a specified key-value pair.
+func Field(key field.Key, value field.Value) field.Field {
+	return field.Field{Key: key, Value: value}
+}
+
+// Context returns a context with a logging key and non-nil value pair.
+func Context(ctx context.Context, key field.Key, value field.Value) context.Context {
 	ctxFieldKeys = append(ctxFieldKeys, key)
 
 	return context.WithValue(ctx, key, value)

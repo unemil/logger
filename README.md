@@ -1,6 +1,6 @@
 # [![doc-img]][doc]
 
-Structured logging based on [slog][slog-doc].
+Structured logging with context support based on a [slog][slog-doc].
 
 ## Install
 
@@ -36,46 +36,33 @@ package main
 import (
 	"context"
 	"errors"
+	"math"
+	"net/http"
 
 	"github.com/unemil/logger"
 )
 
-var (
-	ctx    = context.Background()
-	err    = errors.New("test error")
-	fields = logger.Fields{
-		Field("levels", []logger.Level{
-			logger.LevelTrace,
-			logger.LevelDebug,
-			logger.LevelInfo,
-			logger.LevelWarn,
-			logger.LevelError,
-			logger.LevelFatal,
-			logger.LevelPanic,
-		}),
-		Field("username", nil),
-	}
-)
-
-func Field(key logger.FieldKey, value logger.FieldValue) logger.Field {
-	return logger.Field{Key: key, Value: value}
-}
+var ctx = context.Background()
 
 func main() {
 	// LOG_LEVEL=DEBUG
 
 	logger.Info(ctx, "test")
 
-	// {"time":"2024-02-18T16:42:55+03:00","level":"INFO","source":"test/main.go:34","msg":"test"}
+	// {"time":"2024-02-29T03:13:30+03:00","level":"INFO","source":"test/main.go:17","msg":"test"}
 
-	ctx = logger.With(ctx, "username", "unemil")
-	logger.Debugf(ctx, "test", fields...)
+	ctx = logger.Context(ctx, "username", "unemil")
+	logger.Debugf(ctx, "test",
+		logger.Field("primes", []int{2, 3, 5, 7, 11}),
+		logger.Field("pi", math.Pi),
+		logger.Field("username", nil),
+	)
 
-	// {"time":"2024-02-18T16:42:55+03:00","level":"DEBUG","source":"test/main.go:39","msg":"test","username":null,"levels":["TRACE","DEBUG","INFO","WARN","ERROR","FATAL","PANIC"]}
+	// {"time":"2024-02-29T03:13:30+03:00","level":"DEBUG","source":"test/main.go:22","msg":"test","primes":[2,3,5,7,11],"pi":3.141592653589793,"username":null}
 
-	logger.Error(ctx, "test", err)
+	logger.Errorf(ctx, "test", errors.New("test error"), logger.Field("status", http.StatusInternalServerError))
 
-	// {"time":"2024-02-18T16:42:55+03:00","level":"ERROR","source":"test/main.go:43","msg":"test","username":"unemil","error":"test error"}
+	// {"time":"2024-02-29T03:13:30+03:00","level":"ERROR","source":"test/main.go:30","msg":"test","username":"unemil","error":"test error","status":500}
 }
 ```
 
