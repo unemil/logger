@@ -61,7 +61,7 @@ func Error(ctx context.Context, msg string, err error) {
 
 // Errorf logs a message at the ERROR level with an associated error and additional fields.
 func Errorf(ctx context.Context, msg string, err error, fields ...field.Field) {
-	logger.LogAttrs(ctx, levelError, msg, convertFields(appendFields(errorField(err), fields))...)
+	logger.LogAttrs(ctx, levelError, msg, convertFields(append(field.Fields{errorField(err)}, fields...))...)
 }
 
 // Fatal logs a message at the FATAL level with an associated error and exits the program.
@@ -72,7 +72,7 @@ func Fatal(ctx context.Context, msg string, err error) {
 
 // Fatalf logs a message at the FATAL level with an associated error, additional fields and exits the program.
 func Fatalf(ctx context.Context, msg string, err error, fields ...field.Field) {
-	logger.LogAttrs(ctx, levelFatal, msg, convertFields(appendFields(errorField(err), fields))...)
+	logger.LogAttrs(ctx, levelFatal, msg, convertFields(append(field.Fields{errorField(err)}, fields...))...)
 	os.Exit(1)
 }
 
@@ -84,7 +84,7 @@ func Panic(ctx context.Context, msg string, err error) {
 
 // Panicf logs a message at the PANIC level with an associated error, additional fields and panics.
 func Panicf(ctx context.Context, msg string, err error, fields ...field.Field) {
-	logger.LogAttrs(ctx, levelPanic, msg, convertFields(appendFields(errorField(err), fields))...)
+	logger.LogAttrs(ctx, levelPanic, msg, convertFields(append(field.Fields{errorField(err)}, fields...))...)
 	panic(err)
 }
 

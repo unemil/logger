@@ -98,18 +98,14 @@ func (h *contextHandler) Handle(ctx context.Context, r slog.Record) error {
 		uniqueAttrs = make(map[string]slog.Value, 0)
 		attrKeys    = make([]string, 0, len(ctxFieldKeys)+r.NumAttrs())
 
-		removeKey = func(keys []string, key string) []string {
-			for i := range keys {
-				if keys[i] == key {
-					return append(keys[:i], keys[i+1:]...)
-				}
-			}
-
-			return keys
-		}
 		setAttr = func(a slog.Attr) {
 			if _, ok := uniqueAttrs[a.Key]; ok {
-				attrKeys = removeKey(attrKeys, a.Key)
+				for i := range attrKeys {
+					if attrKeys[i] == a.Key {
+						attrKeys = append(attrKeys[:i], attrKeys[i+1:]...)
+						break
+					}
+				}
 			}
 			attrKeys = append(attrKeys, a.Key)
 			uniqueAttrs[a.Key] = a.Value
@@ -138,32 +134,12 @@ func errorField(err field.Value) field.Field {
 	return field.Field{Key: "error", Value: err}
 }
 
-func appendFields(f field.Field, fs field.Fields) field.Fields {
-	return append(field.Fields{f}, fs...)
-}
-
 func convertField(f field.Field) slog.Attr {
 	switch v := slog.AnyValue(f.Value); v.Kind() {
-	case slog.KindBool:
-		f.Value = v.Bool()
-	case slog.KindDuration:
-		f.Value = v.Duration().String()
-	case slog.KindFloat64:
-		f.Value = v.Float64()
-	case slog.KindInt64:
-		f.Value = v.Int64()
-	case slog.KindString:
-		f.Value = v.String()
 	case slog.KindTime:
 		f.Value = v.Time().Format(time.RFC3339)
-	case slog.KindUint64:
-		f.Value = v.Uint64()
-	case slog.KindGroup:
-		f.Value = v.Group()
-	case slog.KindLogValuer:
-		f.Value = v.LogValuer()
 	default:
-		f.Value = v.Any()
+		f.Value = v
 	}
 
 	return slog.Any(string(f.Key), f.Value)
