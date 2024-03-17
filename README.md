@@ -12,8 +12,6 @@ go get github.com/unemil/logger
 
 ## Usage
 
-Set `LOG_LEVEL` using one of the [LEVEL](#levels) values (default: **INFO**).
-
 ```sh
 export LOG_LEVEL=LEVEL
 ```
