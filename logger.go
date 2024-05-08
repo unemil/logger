@@ -61,7 +61,7 @@ func Error(ctx context.Context, msg string, err error) {
 
 // Errorf logs a message at the ERROR level with an associated error and additional fields.
 func Errorf(ctx context.Context, msg string, err error, fields ...field.Field) {
-	logger.LogAttrs(ctx, levelError, msg, convertFields(append(field.Fields{errorField(err)}, fields...))...)
+	logger.LogAttrs(ctx, levelError, msg, convertFields(append(fields, errorField(err)))...)
 }
 
 // Fatal logs a message at the FATAL level with an associated error and exits the program.
@@ -72,7 +72,7 @@ func Fatal(ctx context.Context, msg string, err error) {
 
 // Fatalf logs a message at the FATAL level with an associated error, additional fields and exits the program.
 func Fatalf(ctx context.Context, msg string, err error, fields ...field.Field) {
-	logger.LogAttrs(ctx, levelFatal, msg, convertFields(append(field.Fields{errorField(err)}, fields...))...)
+	logger.LogAttrs(ctx, levelFatal, msg, convertFields(append(fields, errorField(err)))...)
 	os.Exit(1)
 }
 
@@ -84,7 +84,7 @@ func Panic(ctx context.Context, msg string, err error) {
 
 // Panicf logs a message at the PANIC level with an associated error, additional fields and panics.
 func Panicf(ctx context.Context, msg string, err error, fields ...field.Field) {
-	logger.LogAttrs(ctx, levelPanic, msg, convertFields(append(field.Fields{errorField(err)}, fields...))...)
+	logger.LogAttrs(ctx, levelPanic, msg, convertFields(append(fields, errorField(err)))...)
 	panic(err)
 }
 
@@ -93,9 +93,17 @@ func Field(key field.Key, value field.Value) field.Field {
 	return field.Field{Key: key, Value: value}
 }
 
-// Context returns a context with a logging key and non-nil value pair.
+// Context returns a context with a specified key-value pair.
 func Context(ctx context.Context, key field.Key, value field.Value) context.Context {
-	ctxFieldKeys = append(ctxFieldKeys, key)
+	if ctx == nil {
+		ctx = context.Background()
+	}
 
-	return context.WithValue(ctx, key, value)
+	attr := convertField(field.Field{Key: key, Value: value})
+	if attrs, ok := ctx.Value(fieldsKey).([]slog.Attr); ok {
+		attrs = append(attrs, attr)
+		return context.WithValue(ctx, fieldsKey, attrs)
+	}
+
+	return context.WithValue(ctx, fieldsKey, []slog.Attr{attr})
 }

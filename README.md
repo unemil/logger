@@ -34,33 +34,20 @@ package main
 import (
 	"context"
 	"errors"
-	"math"
 	"net/http"
 
 	"github.com/unemil/logger"
 )
 
-var ctx = context.Background()
-
 func main() {
-	// LOG_LEVEL=DEBUG
-
-	logger.Info(ctx, "test")
-
-	// {"time":"2024-02-29T03:13:30+03:00","level":"INFO","source":"test/main.go:17","msg":"test"}
-
-	ctx = logger.Context(ctx, "username", "unemil")
-	logger.Debugf(ctx, "test",
-		logger.Field("primes", []int{2, 3, 5, 7, 11}),
-		logger.Field("pi", math.Pi),
-		logger.Field("username", nil),
+	var (
+		ctx = logger.Context(context.Background(), "username", "unemil")
+		err = errors.New(http.StatusText(http.StatusUnauthorized))
 	)
 
-	// {"time":"2024-02-29T03:13:30+03:00","level":"DEBUG","source":"test/main.go:22","msg":"test","primes":[2,3,5,7,11],"pi":3.141592653589793,"username":null}
+	logger.Errorf(ctx, "test", err, logger.Field("status", http.StatusUnauthorized))
 
-	logger.Errorf(ctx, "test", errors.New("test error"), logger.Field("status", http.StatusInternalServerError))
-
-	// {"time":"2024-02-29T03:13:30+03:00","level":"ERROR","source":"test/main.go:30","msg":"test","username":"unemil","error":"test error","status":500}
+	// {"time":"2024-05-08T20:15:05+03:00","level":"ERROR","source":"test/main.go:17","msg":"test","error":"Unauthorized","status":401,"username":"unemil"}
 }
 ```
 
