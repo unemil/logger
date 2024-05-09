@@ -13,9 +13,11 @@ import (
 	"github.com/unemil/logger/field"
 )
 
+type contextKey string
+
 const (
-	levelKey  = "LOG_LEVEL"
-	fieldsKey = "LOG_FIELDS"
+	levelKey             = "LOG_LEVEL"
+	fieldsKey contextKey = "LOG_FIELDS"
 )
 
 type contextHandler struct {
