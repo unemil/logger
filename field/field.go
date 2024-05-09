@@ -1,8 +1,8 @@
 package field
 
 type (
-	// Fields represents a collection of logging fields.
-	Fields []Field
+	// Fields represents a collection of unique logging fields.
+	Fields map[Key]Value
 
 	// Field represents a single logging field consisting of a key-value pair.
 	Field struct {

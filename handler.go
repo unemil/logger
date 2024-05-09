@@ -77,23 +77,27 @@ func newContextHandler() *contextHandler {
 }
 
 func (h *contextHandler) Handle(ctx context.Context, r slog.Record) error {
-	var (
-		uniqueAttrs = make(map[string]any)
-		setAttr     = func(a slog.Attr) {
-			uniqueAttrs[a.Key] = a.Value
-		}
-	)
-
-	if attrs, ok := ctx.Value(fieldsKey).([]slog.Attr); ok {
-		for _, attr := range attrs {
-			setAttr(attr)
+	fields := make(field.Fields)
+	if ctxFields, ok := ctx.Value(fieldsKey).(field.Fields); ok {
+		for key, value := range ctxFields {
+			fields[key] = value
 		}
 	}
-	r.Attrs(func(a slog.Attr) bool { setAttr(a); return true })
+	r.Attrs(func(a slog.Attr) bool {
+		fields[field.Key(a.Key)] = field.Value(a.Value)
+		return true
+	})
 
-	attrs := make([]slog.Attr, 0, len(uniqueAttrs))
-	for key, value := range uniqueAttrs {
-		attrs = append(attrs, slog.Any(key, value))
+	attrs := make([]slog.Attr, 0, len(fields))
+	for key, value := range fields {
+		switch v := slog.AnyValue(value); v.Kind() {
+		case slog.KindTime:
+			value = v.Time().Format(time.RFC3339)
+		default:
+			value = v
+		}
+
+		attrs = append(attrs, slog.Any(string(key), value))
 	}
 	sort.SliceStable(attrs, func(i, j int) bool {
 		return attrs[i].Key < attrs[j].Key
@@ -109,21 +113,10 @@ func errorField(err field.Value) field.Field {
 	return field.Field{Key: "error", Value: err}
 }
 
-func convertField(f field.Field) slog.Attr {
-	switch v := slog.AnyValue(f.Value); v.Kind() {
-	case slog.KindTime:
-		f.Value = v.Time().Format(time.RFC3339)
-	default:
-		f.Value = v
-	}
-
-	return slog.Any(string(f.Key), f.Value)
-}
-
-func convertFields(fs field.Fields) []slog.Attr {
-	attrs := make([]slog.Attr, 0, len(fs))
-	for _, f := range fs {
-		attrs = append(attrs, convertField(f))
+func convertFields(fields ...field.Field) []slog.Attr {
+	attrs := make([]slog.Attr, 0, len(fields))
+	for _, field := range fields {
+		attrs = append(attrs, slog.Any(string(field.Key), field.Value))
 	}
 
 	return attrs
