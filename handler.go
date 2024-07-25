@@ -17,63 +17,72 @@ type contextKey string
 
 const (
 	levelKey             = "LOG_LEVEL"
+	formatKey            = "LOG_FORMAT"
 	fieldsKey contextKey = "LOG_FIELDS"
+
+	stackFramesNumber = 11
 )
+
+var handlerOptions = &slog.HandlerOptions{
+	AddSource: true,
+	ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+		switch a.Key {
+		case slog.TimeKey:
+			a.Value = slog.StringValue(a.Value.Time().Format(time.RFC3339))
+		case slog.LevelKey:
+			a.Value = slog.StringValue(levels[a.Value.Any().(slog.Level)])
+		case slog.SourceKey:
+			source := a.Value.Any().(*slog.Source)
+
+			pcs := make([]uintptr, stackFramesNumber)
+			runtime.Callers(0, pcs)
+
+			frames := runtime.CallersFrames(pcs)
+			for {
+				frame, more := frames.Next()
+				if !more {
+					break
+				}
+
+				source.File = frame.File
+				source.Line = frame.Line
+			}
+
+			a.Value = slog.StringValue(fmt.Sprintf("%s:%d",
+				source.File[strings.LastIndexByte(source.File[:strings.LastIndexByte(source.File, '/')], '/')+1:],
+				source.Line,
+			))
+		}
+
+		return a
+	},
+}
 
 type contextHandler struct {
 	slog.Handler
 }
 
 func newContextHandler() *contextHandler {
-	level := levelInfo
-	switch strings.ToUpper(os.Getenv(levelKey)) {
-	case levelTraceName:
-		level = levelTrace
-	case levelDebugName:
-		level = levelDebug
-	}
+	handlerOptions.Level = func(level string) slog.Level {
+		switch level {
+		case levelTraceName:
+			return levelTrace
+		case levelDebugName:
+			return levelDebug
+		}
 
-	return &contextHandler{
-		Handler: slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
-			AddSource: true,
-			Level:     level,
-			ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
-				if a.Key == slog.TimeKey {
-					a.Value = slog.StringValue(a.Value.Time().Format(time.RFC3339))
-				}
+		return levelInfo
+	}(strings.ToUpper(os.Getenv(levelKey)))
 
-				if a.Key == slog.LevelKey {
-					a.Value = slog.StringValue(levels[a.Value.Any().(slog.Level)])
-				}
+	handler := func(format string) slog.Handler {
+		if format == formatJSON {
+			return slog.NewJSONHandler(os.Stdout, handlerOptions)
+		}
 
-				if a.Key == slog.SourceKey {
-					source := a.Value.Any().(*slog.Source)
+		return slog.NewTextHandler(os.Stdout, handlerOptions)
+	}(strings.ToUpper(os.Getenv(formatKey)))
 
-					pcs := make([]uintptr, 11)
-					runtime.Callers(0, pcs)
-
-					frames := runtime.CallersFrames(pcs)
-					for {
-						frame, more := frames.Next()
-						if !more {
-							break
-						}
-
-						source.File = frame.File
-						source.Line = frame.Line
-					}
-
-					a.Value = slog.StringValue(fmt.Sprintf(
-						"%s:%d",
-						source.File[strings.LastIndexByte(source.File[:strings.LastIndexByte(source.File, '/')], '/')+1:],
-						source.Line,
-					))
-				}
-
-				return a
-			},
-		}),
-	}
+	return &contextHandler{Handler: handler}
 }
 
 func (h *contextHandler) Handle(ctx context.Context, r slog.Record) error {
@@ -85,6 +94,7 @@ func (h *contextHandler) Handle(ctx context.Context, r slog.Record) error {
 	}
 	r.Attrs(func(a slog.Attr) bool {
 		fields[field.Key(a.Key)] = field.Value(a.Value)
+
 		return true
 	})
 

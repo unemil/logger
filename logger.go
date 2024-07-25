@@ -8,7 +8,11 @@ import (
 	"github.com/unemil/logger/field"
 )
 
-var logger = slog.New(newContextHandler())
+var logger *slog.Logger
+
+func init() {
+	logger = slog.New(newContextHandler())
+}
 
 // Trace logs a message at the TRACE level.
 func Trace(ctx context.Context, msg string) {

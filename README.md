@@ -14,17 +14,23 @@ go get github.com/unemil/logger
 
 ```sh
 export LOG_LEVEL=LEVEL
+export LOG_FORMAT=FORMAT
 ```
 
 ## Levels
 
 - TRACE
 - DEBUG
-- INFO
+- INFO (default)
 - WARN
 - ERROR
 - FATAL
 - PANIC
+
+## Formats
+
+- TEXT (default)
+- JSON
 
 ## Example
 
@@ -40,14 +46,14 @@ import (
 )
 
 func main() {
-	var (
-		ctx = logger.Context(context.Background(), "username", "unemil")
-		err = errors.New(http.StatusText(http.StatusUnauthorized))
+	logger.Errorf(
+		logger.Context(context.Background(), "username", "unemil"),
+		"test",
+		errors.New(http.StatusText(http.StatusUnauthorized)),
+		logger.Field("status", http.StatusUnauthorized),
 	)
 
-	logger.Errorf(ctx, "test", err, logger.Field("status", http.StatusUnauthorized))
-
-	// {"time":"2024-05-08T20:15:05+03:00","level":"ERROR","source":"test/main.go:17","msg":"test","error":"Unauthorized","status":401,"username":"unemil"}
+	// time=2024-07-25T13:25:53+03:00 level=ERROR source=test/main.go:12 msg=test error=Unauthorized status=401 username=unemil
 }
 ```
 
