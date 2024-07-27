@@ -1,6 +1,6 @@
 # [![doc-img]][doc]
 
-Structured logging with context support based on a [slog][slog-doc].
+Structured logging with context support based on [slog][slog-doc].
 
 ## Install
 
@@ -21,16 +21,20 @@ export LOG_FORMAT=FORMAT
 
 - TRACE
 - DEBUG
-- INFO (default)
+- INFO
 - WARN
 - ERROR
 - FATAL
 - PANIC
 
+Default: `INFO`
+
 ## Formats
 
-- TEXT (default)
+- TEXT
 - JSON
+
+Default: `TEXT`
 
 ## Example
 
