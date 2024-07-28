@@ -15,6 +15,7 @@ go get github.com/unemil/logger
 ```sh
 export LOG_LEVEL=LEVEL
 export LOG_FORMAT=FORMAT
+export LOG_FILE=FILE
 ```
 
 ## Levels
