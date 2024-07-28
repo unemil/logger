@@ -3,6 +3,7 @@ package logger
 import (
 	"context"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"runtime"
@@ -16,8 +17,10 @@ import (
 type contextKey string
 
 const (
-	levelKey             = "LOG_LEVEL"
-	formatKey            = "LOG_FORMAT"
+	levelKey  = "LOG_LEVEL"
+	formatKey = "LOG_FORMAT"
+	fileKey   = "LOG_FILE"
+
 	fieldsKey contextKey = "LOG_FIELDS"
 
 	stackFramesNumber = 11
@@ -63,6 +66,16 @@ type contextHandler struct {
 }
 
 func newContextHandler() *contextHandler {
+	writer := func(file string) io.Writer {
+		if len(file) > 0 {
+			if f, err := os.OpenFile(file, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0600); err == nil {
+				return f
+			}
+		}
+
+		return os.Stdout
+	}(os.Getenv(fileKey))
+
 	handlerOptions.Level = func(level string) slog.Level {
 		switch level {
 		case levelTraceName:
@@ -76,10 +89,10 @@ func newContextHandler() *contextHandler {
 
 	handler := func(format string) slog.Handler {
 		if format == formatJSON {
-			return slog.NewJSONHandler(os.Stdout, handlerOptions)
+			return slog.NewJSONHandler(writer, handlerOptions)
 		}
 
-		return slog.NewTextHandler(os.Stdout, handlerOptions)
+		return slog.NewTextHandler(writer, handlerOptions)
 	}(strings.ToUpper(os.Getenv(formatKey)))
 
 	return &contextHandler{Handler: handler}
