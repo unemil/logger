@@ -68,7 +68,7 @@ type contextHandler struct {
 func newContextHandler() *contextHandler {
 	writer := func(file string) io.Writer {
 		if len(file) > 0 {
-			if f, err := os.OpenFile(file, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0600); err == nil {
+			if f, err := os.OpenFile(file, os.O_WRONLY|os.O_CREATE, 0600); err == nil {
 				return f
 			}
 		}
